@@ -12,21 +12,22 @@ int main(void) {
 	initGobanC();
 	initNNC();
 
-	// NN nn = loadNN("nns/mk");
-	// MATCH match = newMatch();
-	// BOOL blackWon;
-	// float alpha;
-	// for (int i = 0; i < 1; i++) {
-	// 	match = newMatch();
-	// 	alpha = 20 / sqrt(i + 10);
-	// 	blackWon = trainPlayingMatch(match, nn, alpha);
-	// 	printf("match: %d, alpha: %.3f, ", i, alpha);
-	// 	if (blackWon == TRUE) {
-	// 		printf(KBLU "Black" KWHT " won, ");
-	// 	} else {
-	// 		printf(KYEL "White" KWHT " won, ");
-	// 	}
-	// 	saveMatch(match, "sgf/m1.sgf");
-	// 	saveNN(nn, "nns/mk");
-	// }
+	NN nn = loadNN("nns/mk");
+	MATCH match = newMatch();
+	BOOL blackWon;
+	float alpha;
+	for (int i = 0; i < 10; i++) {
+		match = newMatch();
+		alpha = 20 / sqrt(i + 10);
+		blackWon = trainPlayingMatch(match, nn, alpha);
+		printf("match: %d, alpha: %.3f, ", i, alpha);
+		if (blackWon) {
+			printf(KBLU "Black" KWHT " won, ");
+		} else {
+			printf(KYEL "White" KWHT " won, ");
+		}
+		saveMatch(match, "sgf/m1.sgf");
+		saveNN(nn, "nns/mk");
+		// printf("---------------------------\n\n\n\n\n");
+	}
 }
