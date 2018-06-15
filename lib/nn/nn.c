@@ -147,35 +147,29 @@ BOOL getPlay(GOBAN current, int* i, int* j, MOKU stone, GOBAN previous, GOBAN *n
     return TRUE;
 }
 
-GOBAN backpropagation(GOBAN position, NN nn, BOOL hasWon, float alpha, GOBAN deltaBoard1, GOBAN deltaBoard2) {
+GOBAN backpropagation(GOBAN position, NN nn, BOOL hasWon, float alpha) {
     MOKU value, aux = 0, aux2, delta;
     MOKU nextValue, nextDelta;
     int layer, i, j, fi, fj;
     GOBAN deltaBoardA, deltaBoardB;
     getValueGoban(position, nn, TRUE);
-    clearGoban(deltaBoard1);
-    clearGoban(deltaBoard2);
 
     for (i = 0; i < GOBAN_SIZE; i++) {
         for (j = 0; j < GOBAN_SIZE; j++) {
-            setMoku(deltaBoard1, i, j, hasWon ? 1 : -1);
-            setMoku(deltaBoard2, i, j, hasWon ? 1 : -1);
+            setMoku(_nn_deltaBoard1, i, j, hasWon ? 1 : -1);
+            setMoku(_nn_deltaBoard2, i, j, hasWon ? 1 : -1);
         }
     }
 
     for (layer = nn->size - 1; layer >= -1; layer--) {
-        deltaBoardA = layer % 2 == 0 ? deltaBoard1 : deltaBoard2;
-        deltaBoardB = layer % 2 == 0 ? deltaBoard2 : deltaBoard1;
-        printValues(nn->layers[layer]->goban);
+        deltaBoardA = layer % 2 == 0 ? _nn_deltaBoard1 : _nn_deltaBoard2;
+        deltaBoardB = layer % 2 == 0 ? _nn_deltaBoard2 : _nn_deltaBoard1;
         for (i = 0; i < GOBAN_SIZE; i++) {
             for (j = 0; j < GOBAN_SIZE; j++) {
                 delta = 0;
                 getMoku(layer >= 0 ? nn->layers[layer]->goban : position, i, j, &nextValue);
                 if (layer >= 0) {
                     nextValue = 2 * nextValue - 1;
-                }
-                if (nextValue != nextValue) {
-                    exit(0);
                 }
 
                 if (layer < nn->size - 1) {
@@ -185,21 +179,49 @@ GOBAN backpropagation(GOBAN position, NN nn, BOOL hasWon, float alpha, GOBAN del
                             delta += nextDelta * nn->layers[layer + 1]->weights[i][j][fi + 1][fj + 1];
                         }
                     }
+                    if (delta < MIN_WEIGHT) {
+                        delta = MIN_WEIGHT;
+                    } else if (delta > MAX_WEIGHT) {
+                        delta = MAX_WEIGHT;
+                    }
                     setMoku(deltaBoardB, i, j, delta * nextValue * (1 - nextValue));
                     for (fi = -1; fi < 2; fi++) {
                         for (fj = -1; fj < 2; fj++) {
                             getMoku(deltaBoardA, i + fi, j + fj, &nextDelta);
                             nn->layers[layer + 1]->weights[i][j][fi + 1][fj + 1] -= alpha * nextDelta * nextValue;
+                            if (nn->layers[layer + 1]->weights[i][j][fi + 1][fj + 1] < MIN_WEIGHT) {
+                                nn->layers[layer + 1]->weights[i][j][fi + 1][fj + 1] = MIN_WEIGHT;
+                            } else if (nn->layers[layer + 1]->weights[i][j][fi + 1][fj + 1] > MAX_WEIGHT) {
+                                nn->layers[layer + 1]->weights[i][j][fi + 1][fj + 1] = MAX_WEIGHT;
+                            }
                         }
                     }
                     nn->layers[layer + 1]->bases[i][j] -= alpha * nextDelta;
+                    if (nn->layers[layer + 1]->bases[i][j] < MIN_WEIGHT) {
+                        nn->layers[layer + 1]->bases[i][j] = MIN_WEIGHT;
+                    } else if (nn->layers[layer + 1]->bases[i][j] > MAX_WEIGHT) {
+                        nn->layers[layer + 1]->bases[i][j] = MAX_WEIGHT;
+                    }
                 } else {
                     getMoku(deltaBoardA, i, j, &delta);
                     setMoku(deltaBoardB, i, j, delta * nextValue * (1 - nextValue));
                 }
             }
         }
+        // printf("%d\n", layer);
+        // printValues(deltaBoardB);
+        // char c = getchar();
+        // switch(c) {
+        //     case 'g':
+        //         printf(KYEL);
+        //         printValues(nn->layers[layer]->goban);
+        //         printf(KWHT);
+        //         getchar();
+        //         getchar();
+        //     break;
+        // }
     }
+    // printf("------------------------------------------------------------\n");
 
     return deltaBoardB;
 }
@@ -220,10 +242,10 @@ BOOL trainPlayingMatch(MATCH match, NN nn, float alpha) {
     while (getPlay(_nn_current, &i, &j, player, _nn_previous, &_nn_next, nn)) {
         annotate(match, player, i, j);
         player = getOponent(player);
-        _nn_auxGoban = _nn_previous;
-        _nn_previous = _nn_current;
-        _nn_current = _nn_next;
-        _nn_next = _nn_auxGoban;
+        copyGoban(_nn_previous, _nn_auxGoban);
+        copyGoban(_nn_current, _nn_previous);
+        copyGoban(_nn_next, _nn_current);
+        copyGoban(_nn_auxGoban, _nn_next);
         copyGoban(_nn_current, positions[++numberOfPositions]);
     }
     LIST nodes = treeRoot(match->gameTree);
@@ -231,19 +253,14 @@ BOOL trainPlayingMatch(MATCH match, NN nn, float alpha) {
     BOOL blackWon = hasBlackWon(_nn_current);
     clearGoban(_nn_current);
     clearGoban(_nn_previous);
-    if (!length(nodes)) {
-        // printf("%.4f\n[%d, %d]\n", alpha, i, j);
-        // printValues(_nn_current);
-        exit(0);
-    }
     for (int i = 0; i < length(nodes); i++) {
         annotation = (ANNOTATION) get(nodes, i);
-        backpropagation(positions[numberOfPositions - i], nn, annotation->player == -1 ? blackWon : blackWon == TRUE ? FALSE : TRUE, alpha, _nn_deltaBoard1, _nn_deltaBoard2);
+        backpropagation(positions[numberOfPositions - i], nn, annotation->player == -1 ? blackWon : blackWon == TRUE ? FALSE : TRUE, alpha);
         play(_nn_current, annotation->i, annotation->j, annotation->player, _nn_previous, &_nn_next);
-        _nn_auxGoban = _nn_previous;
-        _nn_previous = _nn_current;
-        _nn_current = _nn_next;
-        _nn_next = _nn_auxGoban;
+        copyGoban(_nn_previous, _nn_auxGoban);
+        copyGoban(_nn_current, _nn_previous);
+        copyGoban(_nn_next, _nn_current);
+        copyGoban(_nn_auxGoban, _nn_next);
     }
     return blackWon; 
 }

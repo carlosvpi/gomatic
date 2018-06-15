@@ -16,7 +16,7 @@ int main(void) {
 	MATCH match = newMatch();
 	BOOL blackWon;
 	float alpha;
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 2; i++) {
 		match = newMatch();
 		alpha = 20 / sqrt(i + 10);
 		blackWon = trainPlayingMatch(match, nn, alpha);
@@ -28,6 +28,5 @@ int main(void) {
 		}
 		saveMatch(match, "sgf/m1.sgf");
 		saveNN(nn, "nns/mk");
-		// printf("---------------------------\n\n\n\n\n");
 	}
 }
