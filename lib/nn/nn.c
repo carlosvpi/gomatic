@@ -118,7 +118,7 @@ GOBAN getValueGoban(GOBAN current, NN nn, BOOL fillValues) {
             copyGoban(workboardB, nn->layers[s]->goban);
         }
     }
-    return nn->size % 2 == 0 ? _nn_workBoard2 : _nn_workBoard1;
+    return workboardB;
 }
 BOOL getPlay(GOBAN current, int* i, int* j, MOKU stone, GOBAN previous, GOBAN *next, NN nn) {
     copyGoban(getValueGoban(current, nn, FALSE), _nn_auxGoban);
@@ -143,7 +143,6 @@ BOOL getPlay(GOBAN current, int* i, int* j, MOKU stone, GOBAN previous, GOBAN *n
     if (*i == -1 || *j == -1) {
         return FALSE;
     }
-    play(current, *i, *j, stone, previous, next);
     return TRUE;
 }
 
@@ -236,10 +235,15 @@ BOOL trainPlayingMatch(MATCH match, NN nn, float alpha) {
 
     MOKU player = BLACK_MOKU;
     int i, j;
-    _nn_current = newGoban();
-    _nn_previous = newGoban();
+    clearGoban(_nn_current);
+    clearGoban(_nn_previous);
+
+    getPlay(_nn_current, &i, &j, player, _nn_previous, &_nn_next, nn);
+
+    printValues(_nn_auxGoban);
 
     while (getPlay(_nn_current, &i, &j, player, _nn_previous, &_nn_next, nn)) {
+        play(_nn_current, i, j, player, _nn_previous, &_nn_next);
         annotate(match, player, i, j);
         player = getOponent(player);
         copyGoban(_nn_previous, _nn_auxGoban);

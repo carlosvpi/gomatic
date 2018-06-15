@@ -18,7 +18,7 @@ int main(void) {
 	float alpha;
 	for (int i = 0; i < 2; i++) {
 		match = newMatch();
-		alpha = 20 / sqrt(i + 10);
+		alpha = 1 / sqrt(i + 1);
 		blackWon = trainPlayingMatch(match, nn, alpha);
 		printf("match: %d, alpha: %.3f, ", i, alpha);
 		if (blackWon) {
@@ -26,7 +26,7 @@ int main(void) {
 		} else {
 			printf(KYEL "White" KWHT " won, ");
 		}
-		saveMatch(match, "sgf/m1.sgf");
+		saveMatch(match, "sgf/m.sgf");
 		saveNN(nn, "nns/mk");
 	}
 }
